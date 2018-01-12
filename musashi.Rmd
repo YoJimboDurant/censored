@@ -1,0 +1,94 @@
+---
+title: "Statistical Methods for Censored Data Analysis, Demythed"
+author: "James Durant"
+date: 'null'
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+
+>These things cannot be explained in detail. From one thing, know ten thousand things. You must study hard.
+
+- Miyamoto Musashi, _Go Rin No Sho_
+
+
+
+# Introduction - why does this matter?
+
+## Learning Objectives
+1. Describe the density functions for a distribution
+  - Probability density function
+  - Cumulative distribution function
+2. Define censored data
+
+
+# Density Functions
+
+
+## The thing that matters - density functions!
+
+## Probability Density Functions
+Normal Probability Density Function ($\mu = true\space mean$,  $\sigma=true \space standard \space deviation$)
+
+$$
+f(x) = p(x) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-(x-\mu)^2/(2\sigma^2)}
+$$
+
+```{r pdf}
+require("tidyverse")
+.x  <- seq(-6, 6, length.out = 100)
+
+dframe <- data.frame(x = .x, y = dnorm (.x, 0, 0.5), y1 = dnorm (.x, 0, 1), y2 = dnorm(.x, 0, 2))
+dframe <- gather(dframe, key, value, -x)
+dframe$key <- factor(dframe$key)
+
+levels(dframe$key) <-  c("N(0,0.5)", "N(0,1)", "N(0,2)")
+.plot <- ggplot(dframe, aes(x = x, y = value, linetype=key)) + 
+  geom_line(size = 1) + 
+  scale_y_continuous(expand = c(0.01, 0)) + 
+  xlab("x") + 
+  ylab("Density") + 
+  labs(title = "Normal Density Functions", 
+       caption = "Normal PDF for Standard Deviation 0.5, 1 and 2") + 
+  scale_linetype("Standard Deviation") + theme_bw(base_size = 14, base_family = "sans")
+print(.plot)
+
+
+```
+
+## Cumulative Distribution Functions
+$$
+F(x) = P(X \leq x) = \int_{-\infty}^x f(x) \;dx
+$$
+The c.d.f. of the standard normal appears as:
+$$
+\Phi(z) = \int_{-\infty}^z
+\frac{1}{\sqrt{2}}e^{-x^2/2}\;dx
+$$
+
+
+## Questions
+
+# Censoring
+
+## Type 1 (RIGHT)
+
+## Type 2 (LEFT)
+
+## Type 3 (INTERVAL)
+
+# Kaplan-Meier
+
+
+## CDF and KM
+
+## Arthmetic Mean and KM
+
+
+
+
+# Central Limit Theorem
+
+
