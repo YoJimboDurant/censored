@@ -17,11 +17,12 @@ output:
 
 # Introduction - why does this matter?
 
-```{r htmltable}
+```{r htmltable, echo=FALSE, message=FALSE, warning=FALSE}
 require(htmltab)
 require(tidyverse)
 require(magrittr)
 require(NADA)
+
 url <- "https://www.fda.gov/Food/FoodborneIllnessContaminants/Metals/ucm283725.htm"
 juice <- htmltab(doc = url)
 x <- as.numeric(as.character(juice$`Arsenic Speciation Analysis** >> Inorganic As Concentration (AsIII + AsV) (µg/kg, ppb)`))
@@ -42,16 +43,14 @@ myx <- function(x) x
 
 ros_apples <- ros(dfx$x, dfx$cen, forwardT="myx", reverseT="myx")
 
-plot(ros_apples)
 ros_df <- as.data.frame(ros_apples)
-par(mfrow =c(1,3))
-hist(dfx$xhalf, main = "A.", xlab = "Concentration")
-hist(dfx$xsqrt, main = "B.", xlab = "Concentration")
-hist(ros_df$modeled, main = "C.", xlab = "Concentration")
 
 gather(dfx, key = "key", value = "obs", x, xhalf, xsqrt) %>%
-  ggplot(aes(x=obs, fill = cen)) +geom_histogram() + facet_wrap(~key) +
-  xlab("Concentration")
+  mutate( key = recode(key, x = "DL", xhalf = "DL/2", xsqrt = "DL/sqrt(2)")) %>%
+  ggplot(aes(x=obs, fill = cen)) +geom_histogram() + facet_wrap(~key, labeller = label_parsed) +
+  xlab("Inorganic Arsenic Concentration [ppb]") +
+  ggtitle("Inorganic Arsenic Concentration in 2011 FDA Survey of Apple Juice") +
+  theme_bw()
 
 ```
 
