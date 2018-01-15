@@ -1,0 +1,169 @@
+
+>These things cannot be explained in detail. From one thing, know ten thousand things. You must study hard.
+
+- Miyamoto Musashi, _Go Rin No Sho_
+
+
+
+# Introduction - why does this matter?
+
+## Example Data - Arsenic in Apple Juice
+```{r htmltable, echo=FALSE, message=FALSE, warning=FALSE}
+require(htmltab)
+require(tidyverse)
+require(magrittr)
+require(NADA)
+
+url <- "https://www.fda.gov/Food/FoodborneIllnessContaminants/Metals/ucm283725.htm"
+juice <- htmltab(doc = url)
+x <- as.numeric(as.character(juice$`Arsenic Speciation Analysis** >> Inorganic As Concentration (AsIII + AsV) (µg/kg, ppb)`))
+x[x==0] <- 0.25
+cen <- is.na(x)
+xhalf <- x
+xsqrt <- x
+xzero <- x
+x[cen] <- 2
+xhalf[cen] <- 1
+xsqrt[cen] <- 2/sqrt(2)
+cen[x==0.25] <- TRUE
+xhalf[x==0.25] <- 0.0
+xsqrt[x==0.25] <- 0.0
+xzero[cen] <- 0
+
+dfx <- data.frame(x=x, xhalf = xhalf, xsqrt = xsqrt, xzero = xzero, cen=cen)
+# 
+# myx <- function(x) x
+# 
+# ros_apples <- ros(dfx$x, dfx$cen, forwardT="myx", reverseT="myx")
+
+# ros_df <- as.data.frame(ros_apples)
+
+myapples <- gather(dfx, key = "key", value = "obs", x, xhalf, xsqrt, xzero) %>%
+  mutate( key = recode(key, x = "DL", xhalf = "DL/2", xsqrt = "DL/sqrt(2)", xzero = "0%*%DL")) 
+
+sumapples <- myapples %>%
+  group_by(key) %>%
+  summarise(average = signif(mean(obs),3),  `standard deviation` = signif(sd(obs),3)) 
+
+saveRDS(myapples, file= "./apples.rds")
+
+ggplot(myapples, aes(x=obs, fill = !cen)) +geom_histogram() + 
+  facet_wrap(~key, labeller = label_parsed) + 
+  scale_fill_manual("Detected", values = c("Grey", "Black")) +
+  geom_vline(data=sumapples, aes( xintercept = average, color = "red", linetype = "dashed"), show.legend = FALSE) +
+  xlab("Inorganic Arsenic Concentration [ppb]") + geom_text(data = sumapples, x = 6, y =18, aes(label = paste("bar(x)==", average)), parse = TRUE, inherit.aes = FALSE) +
+  geom_text(data = sumapples, x = 6, y =12, aes(label = paste("s ==", `standard deviation`)), parse = TRUE, inherit.aes = FALSE) + 
+  labs(title = "Inorganic Arsenic Concentration in Apple Juice", 
+       subtitle = "2011 FDA Survey [n=94]", 
+       caption = "Source:FDA. Results of Arsenic Analysis in Single-Strength Apple Juice, 2011\n (ORA Sampling Assignment 2011102701).") +
+  theme_bw() +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        plot.caption=element_text(size=8))
+
+```
+
+ 
+<article>
+ 
+- About 28% of these data are below detection limit
+- Mean varies by up to 0.5 ppb
+- Standard Deviation varies by up to 0.66 ppb
+
+What this means is there is variability in our answer based on how we selected our method of imputing non-detected data. The amount of variability increases with the amount of nondetected data. 
+
+Which method is "correct"? 
+What do we do if our results are sensitive to how we treated nondetect data?
+Should any of our estimates of mean and standard deviation be dependent on the rate of nondetected data?
+
+
+<\article>
+
+
+## Learning Objectives
+<article> From one thing, know ten thousand things. As Miyamoto Musashi said, I will use one idea - the notion of distribution functions to show 3 common ways of dealing with nondetect data work at the mathmatical level.  Understanding the mathmatical basis of these methods will enable you to correctly choose the optimal method of incorporating nondetect data into your analysis of environmental data.
+
+So our very compact agenda will be:
+<\article>
+
+1. Define censored data
+2. Describe the density functions for a distribution
+  - Probability density function
+  - Cumulative distribution function (and its mirror, the Survival Function)
+  - How both can be used to calculate a mean
+3. Utilization of Kaplan-Meier curve for calculating mean
+4. Robust Regression on Order Statistics for imputation of censored data
+5. Maximum Liklihood Estimation
+
+
+# Censoring
+
+## Type 1 (LEFT)
+
+## Type 2 (RIGHT)
+
+## Type 3 (INTERVAL)
+
+# Density Functions
+<article>
+
+The underlying functions that describe the distribution of the data are very powerful. A basic understanding of these equations and their relationship to the sample data, and the sample statistics they estimate, is the one thing that leads to ten thousands things in statistics. After this section, we could move towards discussions of confidence intervals, bootstrapping, central limit theorem, distributional fit testing, and regression. Today, its censoring.   
+
+</article>
+## The thing that matters - density functions!
+
+## Probability Density Functions
+Normal Probability Density Function ($\mu = true\space mean$,  $\sigma=true \space standard \space deviation$)
+
+$$
+f(x) = p(x) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-(x-\mu)^2/(2\sigma^2)}
+$$
+
+```{r pdf}
+require("tidyverse")
+.x  <- seq(-6, 6, length.out = 100)
+
+dframe <- data.frame(x = .x, y = dnorm (.x, 0, 0.5), y1 = dnorm (.x, 0, 1), y2 = dnorm(.x, 0, 2))
+dframe <- gather(dframe, key, value, -x)
+dframe$key <- factor(dframe$key)
+
+levels(dframe$key) <-  c("N(0,0.5)", "N(0,1)", "N(0,2)")
+.plot <- ggplot(dframe, aes(x = x, y = value, linetype=key)) + 
+  geom_line(size = 1) + 
+  scale_y_continuous(expand = c(0.01, 0)) + 
+  xlab("x") + 
+  ylab("Density") + 
+  labs(title = "Normal Density Functions", 
+       caption = "Normal PDF for Standard Deviation 0.5, 1 and 2") + 
+  scale_linetype("Standard Deviation") + theme_bw(base_size = 14, base_family = "sans")
+print(.plot)
+
+
+```
+
+## Cumulative Distribution Functions
+$$
+F(x) = P(X \leq x) = \int_{-\infty}^x f(x) \;dx
+$$
+The c.d.f. of the standard normal appears as:
+$$
+\Phi(z) = \int_{-\infty}^z
+\frac{1}{\sqrt{2}}e^{-x^2/2}\;dx
+$$
+
+
+## Questions
+
+# Kaplan-Meier
+
+
+## CDF and KM
+
+## Arthmetic Mean and KM
+
+
+
+
+# Central Limit Theorem
+
+
