@@ -30,30 +30,41 @@ x[x==0] <- 0.25
 cen <- is.na(x)
 xhalf <- x
 xsqrt <- x
+xzero <- x
 x[cen] <- 2
 xhalf[cen] <- 1
 xsqrt[cen] <- 2/sqrt(2)
 cen[x==0.25] <- TRUE
 xhalf[x==0.25] <- 0.0
 xsqrt[x==0.25] <- 0.0
+xzero[cen] <- 0
 
-dfx <- data.frame(x=x, xhalf = xhalf, xsqrt = xsqrt, cen=cen)
+dfx <- data.frame(x=x, xhalf = xhalf, xsqrt = xsqrt, xzero = xzero, cen=cen)
+# 
+# myx <- function(x) x
+# 
+# ros_apples <- ros(dfx$x, dfx$cen, forwardT="myx", reverseT="myx")
 
-myx <- function(x) x
+# ros_df <- as.data.frame(ros_apples)
 
-ros_apples <- ros(dfx$x, dfx$cen, forwardT="myx", reverseT="myx")
+myapples <- gather(dfx, key = "key", value = "obs", x, xhalf, xsqrt, xzero) %>%
+  mutate( key = recode(key, x = "DL", xhalf = "DL/2", xsqrt = "DL/sqrt(2)", xzero = "0%*%DL")) 
 
-ros_df <- as.data.frame(ros_apples)
+sumapples <- myapples %>%
+  group_by(key) %>%
+  summarise(average = signif(mean(obs),3),  `standard deviation` = signif(sd(obs),3)) 
 
-gather(dfx, key = "key", value = "obs", x, xhalf, xsqrt) %>%
-  mutate( key = recode(key, x = "DL", xhalf = "DL/2", xsqrt = "DL/sqrt(2)")) %>%
-  ggplot(aes(x=obs, fill = cen)) +geom_histogram() + facet_wrap(~key, labeller = label_parsed) +
-  xlab("Inorganic Arsenic Concentration [ppb]") +
+
+ggplot(myapples, aes(x=obs, fill = !cen)) +geom_histogram() + 
+  facet_wrap(~key, labeller = label_parsed) + 
+  scale_fill_manual("Detected", values = c("Grey", "Black")) +
+  geom_vline(data=sumapples, aes( xintercept = average, color = "red", linetype = "dashed"), show.legend = FALSE) +
+  xlab("Inorganic Arsenic Concentration [ppb]") + geom_text(data = sumapples, x = 6, y =18, aes(label = paste("bar(x)==", average)), parse = TRUE, inherit.aes = FALSE) +
+  geom_text(data = sumapples, x = 6, y =12, aes(label = paste("s ==", `standard deviation`)), parse = TRUE, inherit.aes = FALSE) + 
   ggtitle("Inorganic Arsenic Concentration in 2011 FDA Survey of Apple Juice") +
   theme_bw()
 
 ```
-
 
 ## Learning Objectives
 1. Describe the density functions for a distribution
