@@ -39,7 +39,7 @@ dfx <- data.frame(x=x, xhalf = xhalf, xsqrt = xsqrt, xzero = xzero, cen=cen)
 # ros_df <- as.data.frame(ros_apples)
 
 myapples <- gather(dfx, key = "key", value = "obs", x, xhalf, xsqrt, xzero) %>%
-  mutate( key = recode(key, x = "DL", xhalf = "DL/2", xsqrt = "DL/sqrt(2)", xzero = "0%*%DL")) 
+  mutate( key = recode(key, x = "1 %*% DL", xhalf = "DL/2", xsqrt = "DL/sqrt(2)", xzero = "0%*%DL")) 
 
 sumapples <- myapples %>%
   group_by(key) %>%
@@ -79,9 +79,61 @@ Should any of our estimates of mean and standard deviation be dependent on the r
 
 <\article>
 
+## Simulation of Substitution Methods
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+set.seed(100390)
+ros_apples <- ros(dfx$x, dfx$cen)
+
+ros_df <- as.data.frame(ros_apples)
+
+xdata <- rlnorm(10000, 1.58, 0.6)
+
+makeSubData <- function(q){
+  xcen <- xdata < qlnorm(q, 1.58,0.6)
+  xdata[xcen] <- qlnorm(q, 1.58,0.6)
+  fullsub <- apply(matrix(xdata, ncol=100), 2, mean)
+
+  xdata[xcen] <- 0.5 * qlnorm(q, 1.58,0.6)
+  halfsub <- apply(matrix(xdata, ncol=100), 2, mean)
+  
+  
+  xdata[xcen] <-qlnorm(q, 1.58,0.6)/sqrt(2)
+  sqrtsub <- apply(matrix(xdata, ncol=100), 2, mean)
+  
+  xdata[xcen] <-0
+  zsub <- apply(matrix(xdata, ncol=100), 2, mean)
+  
+ dfx <- gather(data.frame(fullsub, halfsub, sqrtsub, zsub))
+ dfx$q <- q
+return(dfx)
+ 
+}
+xcen25 <- makeSubData(q=0.25)
+xcen50 <- makeSubData(q=0.50)
+xcen75 <- makeSubData(q=0.75)
+
+xcenData <- bind_rows(list(xcen25, xcen50, xcen75))
+
+xcenData$key <- factor(xcenData$key)
+levels(xcenData$key) <- c("1 %*% DL", "1/2 %*% DL", 
+                          "1/sqrt(2) %*% DL", "0 %*% DL")
+
+ggplot(xcenData, aes(x=key, y=value, fill=factor(q))) + geom_boxplot() + theme_bw() + geom_hline(aes(yintercept = exp(1.58 + 0.5 * 0.6^2)), lty=2) + xlab("Subsitution Method") + ylab(expression(bar(x))) +scale_fill_manual("Censoring Rate", values = c("grey95", "grey50", "grey25")) + scale_x_discrete(labels = c(expression(1 %*% DL), expression(DL/2), expression(DL/sqrt(2)), expression(0 %*% DL))) +
+  labs(title = "Simulation of Sample Means by Censoring Rate\n and Substitution Method", 
+       subtitle = "Sample Size = 100",
+caption = "True Mean = 5.8\n Censoring rate is unitless [1 = 100% nondetect]")+
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        plot.caption=element_text(size=8))
+
+```
+<article>
+We see that in simulation of a hundred random samples of size 100 from a known distribution, the results of our samples tend to vary by substitution method and by censoring rate.
+<\article>
 
 ## Learning Objectives
-<article> From one thing, know ten thousand things. As Miyamoto Musashi said, I will use one idea - the notion of distribution functions to show 3 common ways of dealing with nondetect data work at the mathmatical level.  Understanding the mathmatical basis of these methods will enable you to correctly choose the optimal method of incorporating nondetect data into your analysis of environmental data.
+<article> 
+From one thing, know ten thousand things. As Miyamoto Musashi said, I will use one idea - the notion of distribution functions to show 3 common ways of dealing with nondetect data work at the mathematical level.  Understanding the mathematical basis of these methods will enable you to correctly choose the optimal method of incorporating nondetect data into your analysis of environmental data.
 
 So our very compact agenda will be:
 <\article>
@@ -93,7 +145,7 @@ So our very compact agenda will be:
   - How both can be used to calculate a mean
 3. Utilization of Kaplan-Meier curve for calculating mean
 4. Robust Regression on Order Statistics for imputation of censored data
-5. Maximum Liklihood Estimation
+5. Maximum Likelihood Estimation
 
 
 # Censoring
@@ -106,10 +158,8 @@ So our very compact agenda will be:
 
 # Density Functions
 <article>
-
-The underlying functions that describe the distribution of the data are very powerful. A basic understanding of these equations and their relationship to the sample data, and the sample statistics they estimate, is the one thing that leads to ten thousands things in statistics. After this section, we could move towards discussions of confidence intervals, bootstrapping, central limit theorem, distributional fit testing, and regression. Today, its censoring.   
-
-</article>
+The underlying functions that describe the distribution of the data are very powerful. A basic understanding of these equations and their relationship to the sample data, and the sample statistics they estimate, is the one thing that leads to ten thousands things in statistics. After this section, we could move towards discussions of confidence intervals, bootstrapping, central limit theorem, distributional fit testing, and regression. Today, its censoring. 
+<\article>
 ## The thing that matters - density functions!
 
 ## Probability Density Functions
@@ -119,7 +169,7 @@ $$
 f(x) = p(x) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-(x-\mu)^2/(2\sigma^2)}
 $$
 
-```{r pdf}
+```{r pdf, echo=FALSE, warning=FALSE, message=FALSE, fig.height=5}
 require("tidyverse")
 .x  <- seq(-6, 6, length.out = 100)
 
@@ -142,28 +192,28 @@ print(.plot)
 ```
 
 ## Cumulative Distribution Functions
+
 $$
 F(x) = P(X \leq x) = \int_{-\infty}^x f(x) \;dx
 $$
+
 The c.d.f. of the standard normal appears as:
+
 $$
 \Phi(z) = \int_{-\infty}^z
 \frac{1}{\sqrt{2}}e^{-x^2/2}\;dx
 $$
+## Survivor Functions
 
+## Empirical Distribution functions 
 
-## Questions
+## Calculating a Mean from a ECDF
+
 
 # Kaplan-Meier
 
+## ECDF and KM
 
-## CDF and KM
-
-## Arthmetic Mean and KM
-
-
-
-
-# Central Limit Theorem
+## Arithmetic Mean and KM
 
 
