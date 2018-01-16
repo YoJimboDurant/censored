@@ -7,5 +7,5 @@ output:
     fig_caption: yes
     reference_docx: ./word_template/template_jtd.docx
 ---
-![](images/Rlogo_small.png)
+
 `r xclass="word"`
