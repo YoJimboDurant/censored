@@ -16,7 +16,7 @@ require(NADA)
 
 url <- "https://www.fda.gov/Food/FoodborneIllnessContaminants/Metals/ucm283725.htm"
 juice <- htmltab(doc = url)
-x <- as.numeric(as.character(juice$`Arsenic Speciation Analysis** >> Inorganic As Concentration (AsIII + AsV) (µg/kg, ppb)`))
+x <- as.numeric(as.character(juice[,3]))
 x[x==0] <- 0.25
 cen <- is.na(x)
 xhalf <- x
