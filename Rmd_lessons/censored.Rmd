@@ -13,6 +13,7 @@ require(htmltab)
 require(tidyverse)
 require(magrittr)
 require(NADA)
+require(gtable)
 
 url <- "https://www.fda.gov/Food/FoodborneIllnessContaminants/Metals/ucm283725.htm"
 juice <- htmltab(doc = url)
@@ -150,20 +151,21 @@ So our very compact agenda will be:
 
 # Censoring
 
-## Type 1 (LEFT)
+## Types of Censoring
+Censoring is a condition where information is partially known. Censored data can contain a mixure of:
 
-## Type 2 (RIGHT)
+- Left censoring - data are reported as less than some value
+- Right censoring - data are reported as greater than some value
+- Interval censoring - where data are known to be between a lower and upper value
 
-## Type 3 (INTERVAL)
 
 # Density Functions
 <article>
 The underlying functions that describe the distribution of the data are very powerful. A basic understanding of these equations and their relationship to the sample data, and the sample statistics they estimate, is the one thing that leads to ten thousands things in statistics. After this section, we could move towards discussions of confidence intervals, bootstrapping, central limit theorem, distributional fit testing, and regression. Today, its censoring. 
 <\article>
-## The thing that matters - density functions!
 
 ## Probability Density Functions
-Normal Probability Density Function ($\mu = true\space mean$,  $\sigma=true \space standard \space deviation$)
+Normal Probability Density Function (PDF) ($\mu = true\space mean$,  $\sigma=true \space standard \space deviation$)
 
 $$
 f(x) = p(x) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-(x-\mu)^2/(2\sigma^2)}
@@ -191,6 +193,41 @@ print(.plot)
 
 ```
 
+<article>
+Recall from your basic statistics that the location and dispersion of the normal density curve is controlled entirely by 2 "parameters", the mean and the standard deviation (or variance, which is the square of the standard deviation). The PDF is a function that defines the probabilty that a value is greater than a value, less than a value or between two values occurs. You may be concerned that we are not venturing into log-normal or gamma distributions, since these are often used to model environmental populations. However, we need to first master how distribution functions in general can be used for calculating summary statistics of censored data. The lognormal distributions and gamma distributions have different PDF's, and the concepts are transferable.      
+<\article>
+
+## What PDF's Probability $X < x$ ? 
+
+
+<article>
+- Specifically, a PDF can be used to calculate the probability that a single observaion (usually this is written as $X$), is less than some specified value, say 0 in case A below. It can also be used for calculating probability it is greater than 0 (case B), or between -1, and 1 (Case C). 
+<\article>
+ 
+```{r makeless, echo=FALSE}
+
+
+makepdf <- function(x = -3.5 , y =-0, title = "A. Probability (x<0) = 50%"){
+  ggplot(data.frame(x = c(-3.5, 3.5)), aes(x)) +
+  stat_function(fun = dnorm) + 
+  stat_function(fun = dnorm, 
+                xlim = c(x,y),
+                geom = "area", alpha =0.5)  +
+                ggtitle(title) + ylab("Density") +
+  theme_bw(base_size = 14, base_family = "sans")
+}
+
+pdfplots <- list(NULL)
+pdfplots[[1]]<- makepdf()
+pdfplots[[2]] <- makepdf(x = 0, y = 3.5, title = "B. Probability (x>0) = 50%")
+pdfplots[[3]] <- makepdf(x=-1,1, title = "C. Probability (-1<x<1) ~68.2%")
+pdfplots[[4]] <- makepdf(x=-3.5,1, title = "C. Probability (-3.5<x<1) ~84.1%")
+
+
+xplot <- gridExtra::grid.arrange(grobs = pdfplots, nrow=2, ncol=2)
+
+```
+ 
 ## Cumulative Distribution Functions
 
 $$
