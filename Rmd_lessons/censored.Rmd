@@ -201,7 +201,10 @@ Recall from your basic statistics that the location and dispersion of the normal
 
 
 <article>
-- Specifically, a PDF can be used to calculate the probability that a single observaion (usually this is written as $X$), is less than some specified value, say 0 in case A below. It can also be used for calculating probability it is greater than 0 (case B), or between -1, and 1 (Case C). 
+- Specifically, a PDF can be used to calculate the probability that a single observaion (usually this is written as $X$), is less than some specified value, say 0 in case A below. It can also be used for calculating probability it is greater than 0 (case B), or between -1, and 1 (Case C). Case D is the probability of X between -3.5 and 1. What is the probability of X = 1? Ha! It' limit is zero.
+
+- PDF's by definition always have an area under the curve equal to exactly 1.
+
 <\article>
  
 ```{r makeless, echo=FALSE}
