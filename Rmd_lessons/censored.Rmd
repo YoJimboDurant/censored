@@ -168,7 +168,7 @@ The underlying functions that describe the distribution of the data are very pow
 Normal Probability Density Function (PDF) ($\mu = true\space mean$,  $\sigma=true \space standard \space deviation$)
 
 $$
-f(x) = p(x) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-(x-\mu)^2/(2\sigma^2)}
+f(x) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-(x-\mu)^2/(2\sigma^2)}
 $$
 
 ```{r pdf, echo=FALSE, warning=FALSE, message=FALSE, fig.height=5}
@@ -197,11 +197,12 @@ print(.plot)
 Recall from your basic statistics that the location and dispersion of the normal density curve is controlled entirely by 2 "parameters", the mean and the standard deviation (or variance, which is the square of the standard deviation). The PDF is a function that defines the probabilty that a value is greater than a value, less than a value or between two values occurs. You may be concerned that we are not venturing into log-normal or gamma distributions, since these are often used to model environmental populations. However, we need to first master how distribution functions in general can be used for calculating summary statistics of censored data. The lognormal distributions and gamma distributions have different PDF's, and the concepts are transferable.      
 <\article>
 
-## What PDF's Probability $X < x$ ? 
+## PDF's Are Used to Calculate the Probability Ranges of Values
+
 
 
 <article>
-- Specifically, a PDF can be used to calculate the probability that a single observaion (usually this is written as $X$), is less than some specified value, say 0 in case A below. It can also be used for calculating probability it is greater than 0 (case B), or between -1, and 1 (Case C). Case D is the probability of X between -3.5 and 1. What is the probability of X = 1? Ha! It' limit is zero.
+- Specifically, a PDF can be used to calculate the probability that a single observaion (usually this is written as $X$), is less than some specified value, say 0 in case A below. It can also be used for calculating probability it is greater than 0 (case B), or between -1, and 1 (Case C). Case D is the probability of X between -3.5 and 1. What is the probability of X = 1? Ha! It's limit is zero.
 
 - PDF's by definition always have an area under the curve equal to exactly 1.
 
@@ -210,7 +211,7 @@ Recall from your basic statistics that the location and dispersion of the normal
 ```{r makeless, echo=FALSE}
 
 
-makepdf <- function(x = -3.5 , y =-0, title = "A. Probability (x<0) = 50%"){
+makepdf <- function(x = -3.5 , y =-1, title = "A. Probability (x<-1) = 50%"){
   ggplot(data.frame(x = c(-3.5, 3.5)), aes(x)) +
   stat_function(fun = dnorm) + 
   stat_function(fun = dnorm, 
@@ -230,8 +231,38 @@ pdfplots[[4]] <- makepdf(x=-3.5,1, title = "C. Probability (-3.5<x<1) ~84.1%")
 xplot <- gridExtra::grid.arrange(grobs = pdfplots, nrow=2, ncol=2)
 
 ```
- 
+
+
+## PDFs and Random Samples
+
+PDF's can be used to predict frequency of random samples falling within a certain range.
+
+```{r, pdffrq, echo=FALSE, message = FALSE}
+ydata <- data.frame(sample = c(rep("Sample 1",100), rep("Sample 2", 100), rep("Sample 3",100), rep("Sample 4",100)), x = rnorm(400))
+
+ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),binwidth = 0.5, alpha = 0.5) + facet_wrap(~sample) +
+  xlim(-4.5,4.5) + theme_bw(base_size = 14, base_family = "sans") +
+  stat_function(fun = dnorm) + 
+  stat_function(fun = dnorm, 
+                xlim = c(-4.5,4.5),
+                geom = "line", alpha =0.5) +
+  labs(title = "Four Samples of 100 Observations From Normal Distribution", 
+       caption = "Parameters: Mean 0, Standard Deviation 1.",
+       y = "Frequency")
+
+```
+## Mean of a Distribution
+
+The mean value of a distribution is equal to the sum of x time x's probability density. Since the PDF is approaches zero for any single value, we have to use calculus to represent this formally:
+
+$$
+\mu = \int_{-\infty}^\infty f(x) dx
+$$
+
+
 ## Cumulative Distribution Functions
+
+- Is simply the 
 
 $$
 F(x) = P(X \leq x) = \int_{-\infty}^x f(x) \;dx
