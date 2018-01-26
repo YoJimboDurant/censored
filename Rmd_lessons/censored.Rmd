@@ -165,7 +165,7 @@ The underlying functions that describe the distribution of the data are very pow
 <\article>
 
 ## Probability Density Functions
-Normal Probability Density Function (PDF) ($\mu = true\space mean$,  $\sigma=true \space standard \space deviation$)
+Normal Probability Density Function (PDF) ($\mu = $ true mean,  $\sigma=$ true standard deviation)
 
 $$
 f(x) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-(x-\mu)^2/(2\sigma^2)}
@@ -209,7 +209,7 @@ Recall from your basic statistics that the location and dispersion of the normal
 <\article>
  
 ```{r makeless, echo=FALSE}
-
+"Percent Chance of Exceedence"
 
 makepdf <- function(x = -3.5 , y =-1, title = "A. Probability (x<-1) = 50%"){
   ggplot(data.frame(x = c(-3.5, 3.5)), aes(x)) +
@@ -232,6 +232,15 @@ xplot <- gridExtra::grid.arrange(grobs = pdfplots, nrow=2, ncol=2)
 
 ```
 
+## Quantile Quantile 
+```{r, qq1, echo=FALSE, message = FALSE}
+
+ggplot(ydata, aes(sample=x)) + stat_qq() + facet_wrap(~sample) + scale_x_continuous(breaks = -2:2, labels = 100 * signif(pnorm(-2:2, lower.tail=FALSE),2)) + theme_bw(base_size = 14, base_family = "sans") + labs(title = "Four Samples of 100 Observations From Normal Distribution", 
+       caption = "4 Samples of n= 100 from Normal Distribution.",
+       y = "Sample Value",
+       x = "Percent Chance of Exceedence")
+
+```
 
 ## PDFs and Random Samples
 
