@@ -165,7 +165,7 @@ The underlying functions that describe the distribution of the data are very pow
 <\article>
 
 ## Probability Density Functions
-Normal Probability Density Function (PDF) ($\mu = $ true mean,  $\sigma=$ true standard deviation)
+Normal Probability Density Function (PDF) ($\mu=$ true mean,  $\sigma=$ true standard deviation)
 
 $$
 f(x) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-(x-\mu)^2/(2\sigma^2)}
@@ -247,6 +247,12 @@ ggplot(ydata, aes(sample=x)) + stat_qq() + facet_wrap(~sample) + scale_x_continu
 PDF's can be used to predict frequency of random samples falling within a certain range.
 
 ```{r, pdffrq, echo=FALSE, message = FALSE}
+ydata <- data.frame(sample = c(rep("Sample 1", 100),
+                               rep("Sample 2", 100),
+                               rep("Sample 3", 100),
+                               rep("Sample 4", 100)),
+                               x=rnorm(400))
+
 
 ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),binwidth = 0.5, alpha = 0.5) + facet_wrap(~sample) +
   xlim(-4.5,4.5) + theme_bw(base_size = 14, base_family = "sans") +
