@@ -15,6 +15,52 @@ require(magrittr)
 require(NADA)
 require(gtable)
 
+qq.line <- function(data, qf, na.rm) {
+    # from stackoverflow.com/a/4357932/1346276
+    q.sample <- quantile(data, c(0.25, 0.75), na.rm = na.rm)
+    q.theory <- qf(c(0.25, 0.75))
+    slope <- diff(q.sample) / diff(q.theory)
+    intercept <- q.sample[1] - slope * q.theory[1]
+
+    list(slope = slope, intercept = intercept)
+}
+
+StatQQLine <- ggproto("StatQQLine", Stat,
+    # http://docs.ggplot2.org/current/vignettes/extending-ggplot2.html
+    # https://github.com/hadley/ggplot2/blob/master/R/stat-qq.r
+
+    required_aes = c('sample'),
+
+    compute_group = function(data, scales,
+                             distribution = stats::qnorm,
+                             dparams = list(),
+                             na.rm = FALSE) {
+        qf <- function(p) do.call(distribution, c(list(p = p), dparams))
+
+        n <- length(data$sample)
+        theoretical <- qf(stats::ppoints(n))
+        qq <- qq.line(data$sample, qf = qf, na.rm = na.rm)
+        line <- qq$intercept + theoretical * qq$slope
+
+        data.frame(x = theoretical, y = line)
+    } 
+)
+
+stat_qqline <- function(mapping = NULL, data = NULL, geom = "line",
+                        position = "identity", ...,
+                        distribution = stats::qnorm,
+                        dparams = list(),
+                        na.rm = FALSE,
+                        show.legend = NA, 
+                        inherit.aes = TRUE) {
+    layer(stat = StatQQLine, data = data, mapping = mapping, geom = geom,
+          position = position, show.legend = show.legend, inherit.aes = inherit.aes,
+          params = list(distribution = distribution,
+                        dparams = dparams,
+                        na.rm = na.rm, ...))
+}
+
+
 url <- "https://www.fda.gov/Food/FoodborneIllnessContaminants/Metals/ucm283725.htm"
 juice <- htmltab(doc = url)
 x <- as.numeric(as.character(juice[,3]))
@@ -209,7 +255,6 @@ Recall from your basic statistics that the location and dispersion of the normal
 <\article>
  
 ```{r makeless, echo=FALSE}
-"Percent Chance of Exceedence"
 
 makepdf <- function(x = -3.5 , y =-1, title = "A. Probability (x<-1) = 50%"){
   ggplot(data.frame(x = c(-3.5, 3.5)), aes(x)) +
@@ -232,47 +277,90 @@ xplot <- gridExtra::grid.arrange(grobs = pdfplots, nrow=2, ncol=2)
 
 ```
 
-## Quantile Quantile 
+## PDF's Predict Percent of Observations > Given Value 
 ```{r, qq1, echo=FALSE, message = FALSE}
-
-ggplot(ydata, aes(sample=x)) + stat_qq() + facet_wrap(~sample) + scale_x_continuous(breaks = -2:2, labels = 100 * signif(pnorm(-2:2, lower.tail=FALSE),2)) + theme_bw(base_size = 14, base_family = "sans") + labs(title = "Four Samples of 100 Observations From Normal Distribution", 
-       caption = "4 Samples of n= 100 from Normal Distribution.",
-       y = "Sample Value",
-       x = "Percent Chance of Exceedence")
-
-```
-
-## PDFs and Random Samples
-
-PDF's can be used to predict frequency of random samples falling within a certain range.
-
-```{r, pdffrq, echo=FALSE, message = FALSE}
+set.seed(2)
 ydata <- data.frame(sample = c(rep("Sample 1", 100),
                                rep("Sample 2", 100),
                                rep("Sample 3", 100),
                                rep("Sample 4", 100)),
                                x=rnorm(400))
+ydata <- ydata[order(ydata$sample, ydata$x),]
+ydata$order <- 1:100
+
+ydata$highlight = ifelse(ydata$order %in% c(2,16,50,84,98), "#FF0000", "#000000")
+ydata$order_txt = ifelse(ydata$order %in% c(2,16,50,84,98), ydata$order, "")
+
+ggplot(ydata, aes(sample=x)) + 
+  geom_point(color=ydata$highlight, stat="qq", size = 0.65)  +
+  geom_text(label=ydata$order_txt, stat="qq", nudge_y=1, color = "red") +
+  stat_qqline(alpha =0.5) + facet_wrap(~sample) + 
+  scale_x_continuous(breaks = -2:2, labels = function(x) paste0(x, " \n [",100 * signif(pnorm(-2:2, lower.tail=FALSE),2), "%]")) + 
+  theme_bw(base_family = "sans") +
+  labs(
+    title = "Four Samples of 100 Observations From Normal Distribution",
+    caption = "4 Samples of n = 100 from Normal Distribution \nNumbers indicate order of value",
+    subtitle = "Compared to a normal distribution model",
+    y = "Sample Value",x = "Theoretical Quantile\n[%Exceeding]")
+```
+
+## If the Model Fits!  
+
+```{r, qq2, echo=FALSE, message = FALSE}
+set.seed(2)
+y1data <- data.frame(sample = c(rep("Sample 1", 100),
+                               rep("Sample 2", 100),
+                               rep("Sample 3", 100),
+                               rep("Sample 4", 100)),
+                               x=rlnorm(400, sdlog = 0.75))
+y1data <- y1data[order(y1data$sample, y1data$x),]
+y1data$order <- 1:100
+
+y1data$highlight = ifelse(y1data$order %in% c(2,16,50,84,98), "#FF0000", "#000000")
+y1data$order_txt = ifelse(y1data$order %in% c(2,16,50,84,98), ydata$order, "")
+
+ggplot(y1data, aes(sample=x)) + 
+  geom_point(color=y1data$highlight, stat="qq", size = 0.65)  +
+  geom_text(label=y1data$order_txt, stat="qq", nudge_y=1, color = "red") +
+  stat_qqline(alpha = 0.5) + facet_wrap(~sample) + 
+  scale_x_continuous(breaks = -2:2, labels = function(x) paste0(x, " \n [",100 * signif(pnorm(-2:2, lower.tail=FALSE),2), "%]")) + 
+  theme_bw(base_family = "sans") + 
+  labs(
+    title = "Four Samples of 100 Observations From Lognormal Distribution",
+    subtitle = "Compared to normal distribution model",
+    caption = "4 Samples of n = 100 from Lognormal Distribution \nNumbers indicate order of value",
+    y = "Sample Value",x = "Theoretical Quantile\n[%Exceeding]")
+```
+
+
+## PDFs and Random Frequency of Values in Sample
+
+PDF's can be used to predict frequency of random samples falling within a certain range.
+
+```{r, pdffrq, echo=FALSE, message = FALSE}
+
 
 
 ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),binwidth = 0.5, alpha = 0.5) + facet_wrap(~sample) +
-  xlim(-4.5,4.5) + theme_bw(base_size = 14, base_family = "sans") +
+  xlim(-4.5,4.5) + theme_bw(base_family = "sans") +
   stat_function(fun = dnorm) + 
   stat_function(fun = dnorm, 
                 xlim = c(-4.5,4.5),
                 geom = "line", alpha =0.5) +
   labs(title = "Four Samples of 100 Observations From Normal Distribution", 
-       caption = "Parameters: Mean 0, Standard Deviation 1.",
+       caption = "Parameters: Mean 0, Standard Deviation 1\nBlack line indicated theoretical distribution",
        y = "Frequency")
 
 ```
+
 ## Mean of a Distribution
 
-The mean value of a distribution is equal to the sum of x time x's probability density. Since the PDF is approaches zero for any single value, we have to use calculus to represent this formally:
+The mean value of a distribution is equal to the sum of x time x's frequency of observation. Since the PDF is approaches zero for any single value, we have to use calculus to represent this:
 
 $$
-\mu = \int_{-\infty}^\infty f(x) dx
+\mu = \int_{-\infty}^\infty xf(x) dx
 $$
-
+It follows then that in a simple random sample of size $n$, each sample observation has a frequency of observation of $\frac{1}{n}$. The sample mean is:  $$\bar{x} = \frac{\sum_{i=1}^{n}x_i}{n}$$.
 
 ## Cumulative Distribution Functions
 
