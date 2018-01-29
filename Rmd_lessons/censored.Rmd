@@ -277,7 +277,7 @@ xplot <- gridExtra::grid.arrange(grobs = pdfplots, nrow=2, ncol=2)
 
 ```
 
-## PDF's Predict Percent of Observations > Given Value 
+## Normal Probability Plot 
 ```{r, qq1, echo=FALSE, message = FALSE}
 set.seed(2)
 ydata <- data.frame(sample = c(rep("Sample 1", 100),
@@ -304,7 +304,7 @@ ggplot(ydata, aes(sample=x)) +
     y = "Sample Value",x = "Theoretical Quantile\n[%Exceeding]")
 ```
 
-## If the Model Fits!  
+## Normal Probability Plot - Lognormal Data  
 
 ```{r, qq2, echo=FALSE, message = FALSE}
 set.seed(2)
@@ -333,6 +333,8 @@ ggplot(y1data, aes(sample=x)) +
 ```
 
 
+
+    
 ## PDFs and Random Frequency of Values in Sample
 
 PDF's can be used to predict frequency of random samples falling within a certain range.
@@ -353,9 +355,9 @@ ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),binwidth = 0.5, alph
 
 ```
 
-## Mean of a Distribution
+## PDF's and the Arithmetic Mean of a Distribution
 
-The mean value of a distribution is equal to the sum of x time x's frequency of observation. Since the PDF is approaches zero for any single value, we have to use calculus to represent this:
+The arithmetic mean value of a distribution is equal to the sum of x multiplied by x's frequency of observation. Since the PDF is approaches zero for any single value, we have to use calculus to represent this:
 
 $$
 \mu = \int_{-\infty}^\infty xf(x) dx
@@ -364,21 +366,108 @@ It follows then that in a simple random sample of size $n$, each sample observat
 
 ## Cumulative Distribution Functions
 
-- Is simply the 
+- The cumulative distribution function (CDF) is the probability that some value $X$ is less than or equal to a given value ($x$).
 
-$$
-F(x) = P(X \leq x) = \int_{-\infty}^x f(x) \;dx
-$$
+```{r cdf1, echo=FALSE, fig.height=5}
+pdf1 <- ggplot(data.frame(x = c(-3.5, 3.5)), aes(x)) +
+  stat_function(fun = dnorm) + 
+  stat_function(fun = dnorm, 
+                xlim = c(-3.5,-2),
+                geom = "area", alpha =0.1)  +
+    stat_function(fun = dnorm, 
+                xlim = c(-3.5,-1),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = dnorm, 
+                xlim = c(-3.5,0),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = dnorm, 
+                xlim = c(-3.5,1),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = dnorm, 
+                xlim = c(-3.5,2),
+                geom = "area", alpha =0.1) +
+  stat_function(fun = dnorm, 
+                xlim = c(-3.5,3.5),
+                geom = "area", alpha =0.1) +
+                ggtitle("Normal PDF") + ylab("Density") +
+  theme_bw(base_family = "sans")
 
-The c.d.f. of the standard normal appears as:
 
-$$
-\Phi(z) = \int_{-\infty}^z
-\frac{1}{\sqrt{2}}e^{-x^2/2}\;dx
-$$
+
+cdf1 <- ggplot(data.frame(x = c(-3.5, 3.5)), aes(x)) +
+  stat_function(fun = pnorm) + 
+  stat_function(fun = pnorm, 
+                xlim = c(-3.5,-2),
+                geom = "area", alpha =0.1)  +
+    stat_function(fun = pnorm, 
+                xlim = c(-3.5,-1),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = pnorm, 
+                xlim = c(-3.5,0),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = pnorm, 
+                xlim = c(-3.5,1),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = pnorm, 
+                xlim = c(-3.5,2),
+                geom = "area", alpha =0.1) +
+  stat_function(fun = pnorm, 
+                xlim = c(-3.5,3.5),
+                geom = "area", alpha =0.1) +
+                ggtitle("Normal CDF") + ylab(expression("P(x<X)")) +
+  theme_bw(base_family = "sans")
+
+
+
+xplot <- gridExtra::grid.arrange(grobs = list(pdf1, cdf1), nrow=2, ncol=1)
+
+```
+
+
+
+
 ## Survivor Functions
+- The survuvor function is 1 - CDF
+- The area under the survivor function is the arthimetric mean
 
-## Empirical Distribution functions 
+```{r sdf1, echo=FALSE, message=FALSE, warning=FALSE}
+(sdf1 <- ggplot(data.frame(x = c(-3.5, 3.5)), aes(x)) +
+  stat_function(fun = pnorm, args = list(lower.tail=FALSE)) + 
+  stat_function(fun = pnorm, args = list(lower.tail=FALSE), 
+                xlim = c(-3.5,-2),
+                geom = "area", alpha =0.1)  +
+    stat_function(fun = pnorm, args = list(lower.tail=FALSE), 
+                xlim = c(-3.5,-1),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = pnorm, args = list(lower.tail=FALSE), 
+                xlim = c(-3.5,0),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = pnorm, args = list(lower.tail=FALSE), 
+                xlim = c(-3.5,1),
+                geom = "area", alpha =0.1) +
+    stat_function(fun = pnorm, args = list(lower.tail=FALSE), 
+                xlim = c(-3.5,2),
+                geom = "area", alpha =0.1) +
+  stat_function(fun = pnorm, args = list(lower.tail=FALSE), 
+                xlim = c(-3.5,3.5),
+                geom = "area", alpha =0.1) +
+                ggtitle("Normal CDF") + ylab(expression("P(x>X)")) +
+  theme_bw(base_family = "sans"))
+
+```
+
+
+## Empirical Distribution Function
+
+- Used for sample data
+- The empirical distribution function is like the CDF, but function step $1/n$ at each of the $n$ data points.
+
+```{r ecdf, echo=FALSE}
+ggplot(ydata, aes(x, group=sample, col=sample)) + geom_line(stat="ecdf") +
+  stat_function(fun=pnorm, col="black", size=1.1) +
+  theme_bw(base_family = "sans") + scale_color_brewer("Sample Group", type = "div") + labs(title = "Empirical CDF (4 Samples) \n and Theoretical ECF",
+                                                                                           subtitle = "100 samples from N(0,1) distribution") + ylab(expression("P(x<X)"))
+```
 
 ## Calculating a Mean from a ECDF
 
