@@ -258,7 +258,7 @@ You may be concerned that we are not venturing into log-normal or gamma distribu
  
 ```{r makeless, echo=FALSE}
 
-makepdf <- function(x = -3.5 , y =-1, title = "A. Probability (x<-1) = 50%"){
+makepdf <- function(x = -3.5 , y =-1, title = "A. Probability (x<-1) =~16%"){
   ggplot(data.frame(x = c(-3.5, 3.5)), aes(x)) +
   stat_function(fun = dnorm) + 
   stat_function(fun = dnorm, 
@@ -270,7 +270,7 @@ makepdf <- function(x = -3.5 , y =-1, title = "A. Probability (x<-1) = 50%"){
 
 pdfplots <- list(NULL)
 pdfplots[[1]]<- makepdf()
-pdfplots[[2]] <- makepdf(x = 0, y = 3.5, title = "B. Probability (x>0)  ~ 16%")
+pdfplots[[2]] <- makepdf(x = 0, y = 3.5, title = "B. Probability (x>0)  = 50%")
 pdfplots[[3]] <- makepdf(x=-1,1, title = "C. Probability (-1<x<1) ~ 68.2%")
 pdfplots[[4]] <- makepdf(x=-3.5,1, title = "C. Probability (-3.5<x<1) ~ 84.1%")
 
