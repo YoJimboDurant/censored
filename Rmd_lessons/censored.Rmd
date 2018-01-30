@@ -190,7 +190,7 @@ So our very compact agenda will be:
   - Probability density function
   - Cumulative distribution function (and its mirror, the Survival Function)
   - How both can be used to calculate a mean
-3. Utilization of Kaplan-Meier curve for calculating mean
+3. Utilization of Kaplan-Meier estimator for calculating mean
 4. Robust Regression on Order Statistics for imputation of censored data
 5. Maximum Likelihood Estimation
 
@@ -225,7 +225,7 @@ dframe <- data.frame(x = .x, y = dnorm (.x, 0, 0.5), y1 = dnorm (.x, 0, 1), y2 =
 dframe <- gather(dframe, key, value, -x)
 dframe$key <- factor(dframe$key)
 
-levels(dframe$key) <-  c("N(0,0.5)", "N(0,1)", "N(0,2)")
+levels(dframe$key) <-  c("0.5", "1", "2")
 .plot <- ggplot(dframe, aes(x = x, y = value, linetype=key)) + 
   geom_line(size = 1) + 
   scale_y_continuous(expand = c(0.01, 0)) + 
@@ -233,14 +233,16 @@ levels(dframe$key) <-  c("N(0,0.5)", "N(0,1)", "N(0,2)")
   ylab("Density") + 
   labs(title = "Normal Density Functions", 
        caption = "Normal PDF for Standard Deviation 0.5, 1 and 2") + 
-  scale_linetype("Standard Deviation") + theme_bw(base_size = 14, base_family = "sans")
+  scale_linetype("Standard Deviation") + theme_bw(base_family = "sans")
 print(.plot)
 
 
 ```
 
 <article>
-Recall from your basic statistics that the location and dispersion of the normal density curve is controlled entirely by 2 "parameters", the mean and the standard deviation (or variance, which is the square of the standard deviation). The PDF is a function that defines the probabilty that a value is greater than a value, less than a value or between two values occurs. You may be concerned that we are not venturing into log-normal or gamma distributions, since these are often used to model environmental populations. However, we need to first master how distribution functions in general can be used for calculating summary statistics of censored data. The lognormal distributions and gamma distributions have different PDF's, and the concepts are transferable.      
+Recall from your basic statistics that the location and dispersion of the normal density curve is controlled entirely by 2 "parameters" (para means besides, meter means measurement), the mean and the standard deviation (or variance, which is the square of the standard deviation). The PDF is a function that indicates how likley a given value is. Recall that the area under a PDF is always equal to one as the function represents all possible values from a population. The higher the curve, the more likley the value is relative to other values. In the normal distribution equation, sigma determines the height of the curve at the mean.
+
+You may be concerned that we are not venturing into log-normal or gamma distributions, since these are often used to model environmental populations. To keep things relatively simple, I am using the normal distribution to start out with. The lognormal distributions and gamma distributions have different PDF's, and slightly different parameters. But conceptually, they work the same way.      
 <\article>
 
 ## PDF's Are Used to Calculate the Probability Ranges of Values
@@ -268,9 +270,9 @@ makepdf <- function(x = -3.5 , y =-1, title = "A. Probability (x<-1) = 50%"){
 
 pdfplots <- list(NULL)
 pdfplots[[1]]<- makepdf()
-pdfplots[[2]] <- makepdf(x = 0, y = 3.5, title = "B. Probability (x>0) = 50%")
-pdfplots[[3]] <- makepdf(x=-1,1, title = "C. Probability (-1<x<1) ~68.2%")
-pdfplots[[4]] <- makepdf(x=-3.5,1, title = "C. Probability (-3.5<x<1) ~84.1%")
+pdfplots[[2]] <- makepdf(x = 0, y = 3.5, title = "B. Probability (x>0)  ~ 16%")
+pdfplots[[3]] <- makepdf(x=-1,1, title = "C. Probability (-1<x<1) ~ 68.2%")
+pdfplots[[4]] <- makepdf(x=-3.5,1, title = "C. Probability (-3.5<x<1) ~ 84.1%")
 
 
 xplot <- gridExtra::grid.arrange(grobs = pdfplots, nrow=2, ncol=2)
@@ -304,6 +306,13 @@ ggplot(ydata, aes(sample=x)) +
     y = "Sample Value",x = "Theoretical Quantile\n[%Exceeding]")
 ```
 
+<article>
+There is a relationship between the quantiles and the standard deviation in the normal distribution.We would expect about 84% of the data to be less than the mean plus 1 standard deviation. 16% of the data to be less than than the mean minus 1 standard devation. Practically, we can use this relationship to assess how well the normal model fit a sample of data. 
+
+It's easier to illustrate - if we collect 4 sample sets from a normal population, and order the observations from the lowest value to the highest value. If we have normal distribution, we would expect about 98% of the data to be greater than the 2nd highest value. We would expect 84% of the data to be higher than the 16th highest value, 50% of the data to be higher than the 50th highest value, and 16% of the data to be higher than the 84th highest value, and 2% of the data to be greater than the 98th highest value. Plotted with the X axis representing the the standard deviations from the mean, this plot will reveal a linear relationship between the observed and theoretical quantiles.
+<\article>
+
+
 ## Normal Probability Plot - Lognormal Data  
 
 ```{r, qq2, echo=FALSE, message = FALSE}
@@ -333,27 +342,68 @@ ggplot(y1data, aes(sample=x)) +
 ```
 
 
+<article>
+If the data were samples from say a different distribution, say a lognormal distribution, then the relationship between the sample and theoreoretical quantiles will not be linear.
+<\article>
 
     
 ## PDFs and Random Frequency of Values in Sample
 
 PDF's can be used to predict frequency of random samples falling within a certain range.
 
-```{r, pdffrq, echo=FALSE, message = FALSE}
+```{r, pdffrq, echo=FALSE, message = FALSE, warning =FALSE}
+
+ydata_dist <- ydata %>% group_by(sample) %>%
+  summarise(mean = mean(x), sd = sd(x))
+
+dfx <- split(ydata_dist, ydata_dist$sample) %>%
+  lapply(function(x){
+    data.frame(sample = x$sample, x = seq(from = -4.5, to = 4.5, length = 100), `Population` = dnorm(x = seq(from = -4.5, to = 4.5, length = 100)),
+    `Sample Fit` = dnorm(x = seq(from = -4.5, to = 4.5, length = 100), mean = x$mean, sd=x$sd))
+  }) %>%
+  bind_rows(.) 
+
+lx <- split(ydata, ydata$sample) %>% lapply(function(x) hist(x$x, plot=FALSE,
+                                                       breaks = c(-3,-2.5, -2.0, -1.5, -1.0, -0.5,  0.0,  0.5,  1.0,  1.5,  2.0,  2.5,3)))
+
+lx <- lapply(lx, function(x){
+  left = x$breaks[1:length(x$breaks)-1]
+  right = x$breaks[2:length(x$breaks)]
+  count = x$counts
+  
+  left <- rep(left, count)
+  right <- rep(right, count)
+  
+  censfit<- fitdistrplus::fitdistcens(censdata = data.frame(left=left, right=right), distr="norm")
+
+  data.frame(x = seq(-4.5, 4.5, length = 100), `Fit Grouped` = dnorm(x=seq(-4.5,4.5, length = 100), mean = censfit$estimate[[1]], sd = censfit$estimate[[2]] ))
+  
+})
+
+for(i in 1:length(lx)){
+  lx[[i]]$sample <- names(lx)[[i]]
+}
+
+dfx <- full_join(dfx, bind_rows(lx)) %>%
+  gather(Model, dens, Population, Sample.Fit, Fit.Grouped)
+
+dfx$Model <- factor(dfx$Model, levels = c("Population", "Sample.Fit", "Fit.Grouped"))
+
+levels(dfx$Model) <- c("Population","Sample","Grouped Data")
 
 
-
-ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),binwidth = 0.5, alpha = 0.5) + facet_wrap(~sample) +
+ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),
+                                         breaks = c(-3.0, -2.5, -2.0, -1.5, -1.0, -0.5,  0.0,  0.5,  1.0,  1.5,  2.0,  2.5,3), alpha = 0.5) + facet_wrap(~sample) +
   xlim(-4.5,4.5) + theme_bw(base_family = "sans") +
-  stat_function(fun = dnorm) + 
-  stat_function(fun = dnorm, 
-                xlim = c(-4.5,4.5),
-                geom = "line", alpha =0.5) +
+    geom_line(data = dfx, aes(y=dens, color = Model), size=1.25) + scale_color_manual("Model", values = c("#000000", "#0072B2", "#F0E442")) +
   labs(title = "Four Samples of 100 Observations From Normal Distribution", 
        caption = "Parameters: Mean 0, Standard Deviation 1\nBlack line indicated theoretical distribution",
        y = "Frequency")
 
+
 ```
+
+
 
 ## PDF's and the Arithmetic Mean of a Distribution
 
@@ -427,7 +477,7 @@ xplot <- gridExtra::grid.arrange(grobs = list(pdf1, cdf1), nrow=2, ncol=1)
 
 
 ## Survivor Functions
-- The survuvor function is 1 - CDF
+- The survivor function is 1 - CDF
 - The area under the survivor function is the arthimetric mean
 
 ```{r sdf1, echo=FALSE, message=FALSE, warning=FALSE}
@@ -462,7 +512,7 @@ xplot <- gridExtra::grid.arrange(grobs = list(pdf1, cdf1), nrow=2, ncol=1)
 - Used for sample data
 - The empirical distribution function is like the CDF, but function step $1/n$ at each of the $n$ data points.
 
-```{r ecdf, echo=FALSE}
+```{r ecdf, echo=FALSE, fig.height=5}
 ggplot(ydata, aes(x, group=sample, col=sample)) + geom_line(stat="ecdf") +
   stat_function(fun=pnorm, col="black", size=1.1) +
   theme_bw(base_family = "sans") + scale_color_brewer("Sample Group", type = "div") + labs(title = "Empirical CDF (4 Samples) \n and Theoretical ECF",
