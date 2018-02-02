@@ -389,7 +389,7 @@ dfx <- full_join(dfx, bind_rows(lx)) %>%
 
 dfx$Model <- factor(dfx$Model, levels = c("Population", "Sample.Fit", "Fit.Grouped"))
 
-levels(dfx$Model) <- c("Population","Sample","Grouped Data")
+levels(dfx$Model) <- c("Population","Sample","Binned Data")
 
 
 ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),
@@ -501,7 +501,7 @@ xplot <- gridExtra::grid.arrange(grobs = list(pdf1, cdf1), nrow=2, ncol=1)
   stat_function(fun = pnorm, args = list(lower.tail=FALSE), 
                 xlim = c(-3.5,3.5),
                 geom = "area", alpha =0.1) +
-                ggtitle("Normal CDF") + ylab(expression("P(x>X)")) +
+                ggtitle("Normal Survivor Function") + ylab(expression("P(x>X)")) +
   theme_bw(base_family = "sans"))
 
 ```
@@ -519,8 +519,29 @@ ggplot(ydata, aes(x, group=sample, col=sample)) + geom_line(stat="ecdf") +
                                                                                            subtitle = "100 samples from N(0,1) distribution") + ylab(expression("P(x<X)"))
 ```
 
-## Calculating a Mean from a ECDF
+## Calculating a Sample Mean from a ECDF (1)
+$\bar{X}$ from an ECDF is best illustrated by example. 
 
+Jim would like to see if his coworkers on his floor would like to buy a fancy coffee machine for the office breakroom. He randomly polls 10 persons of the 100 persons on the floor and asks them how much they would contribute for a coffee machine. 
+
+He gets the following data:  
+
+```{r coffee, echo=FALSE}
+dfx <- data.frame(Name = c("Brian", "Mike", "Amy", "Susan", "Rick", "Charles", "Rose", "Elaine", "Sharon", "John"),
+           `Dollar Contribution` = 1:10, check.names=FALSE)
+  knitr::kable(dfx)
+```
+
+## Calculating a Sample Mean from a ECDF (2)
+
+```{r coffee, echo=FALSE}
+mutate(dfx, `Contrib` = max(`Dollar Contribution`) + 1 - `Dollar Contribution`, `Dollar Contribution` = `Dollar Contribution`-1) %>%
+  ggplot(aes(x = `Dollar Contribution`, y=Contrib)) + geom_step() + scale_y_continuous(breaks = 1:10) +
+  scale_x_continuous(breaks = 0:10) + 
+  labs(y = "Number Willing to Give \n(at least)",
+       x = "Dollar Amount") + theme_bw() +
+  annotate("text", x = 1:10, y =10:1 * 0.5, label = paste(1:10, "x", 10:1))
+```
 
 # Kaplan-Meier
 
