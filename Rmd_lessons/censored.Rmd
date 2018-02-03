@@ -519,7 +519,7 @@ ggplot(ydata, aes(x, group=sample, col=sample)) + geom_line(stat="ecdf") +
                                                                                            subtitle = "100 samples from N(0,1) distribution") + ylab(expression("P(x<X)"))
 ```
 
-## Calculating a Sample Mean from a ECDF (1)
+## Calculating a Sample Mean from a Empirical Survivor Function (1)
 $\bar{X}$ from an ECDF is best illustrated by example. 
 
 Jim would like to see if his coworkers on his floor would like to buy a fancy coffee machine for the office breakroom. He randomly polls 10 persons of the 100 persons on the floor and asks them how much they would contribute for a coffee machine. 
@@ -532,18 +532,35 @@ dfx <- data.frame(Name = c("Brian", "Mike", "Amy", "Susan", "Rick", "Charles", "
   knitr::kable(dfx)
 ```
 
-## Calculating a Sample Mean from a ECDF (2)
+## Calculating a Sample Mean from a Empirical Survivor Function (2)
 
-```{r coffee, echo=FALSE}
-mutate(dfx, `Contrib` = max(`Dollar Contribution`) + 1 - `Dollar Contribution`, `Dollar Contribution` = `Dollar Contribution`-1) %>%
-  ggplot(aes(x = `Dollar Contribution`, y=Contrib)) + geom_step() + scale_y_continuous(breaks = 1:10) +
+```{r coffee2, echo=FALSE, warning = FALSE}
+ggplot(xdf, aes(x=`Dollar Contribution`, y=`Contrib`)) + geom_step() + scale_y_continuous(breaks = 1:10) +
   scale_x_continuous(breaks = 0:10) + 
   labs(y = "Number Willing to Give \n(at least)",
        x = "Dollar Amount") + theme_bw() +
-  annotate("text", x = 1:10, y =10:1 * 0.5, label = paste(1:10, "x", 10:1))
+  annotate("text", x = 0.5:9.5, y =10:1 * 0.5, label = paste(10:1, "x", rep(1,10))) +
+    geom_path(data=data.frame(x = rep(0:10, each=2), y = c(rbind(rep(0,10),10:0 )), group = rep(0:10,each = 2) ), aes(x=x, y=y, group=group), col = "grey", alpha = .70) + geom_hline(yintercept = 0)
+```
+
+## Calculating a Sample Mean from a Empirical Survivor Function (3)
+
+```{r coffee3, echo=FALSE, warning = FALSE}
+ggplot(xdf, aes(x=`Dollar Contribution`, y=`Contrib`/10)) + geom_step() + scale_y_continuous(breaks = 1:10/10) +
+  scale_x_continuous(breaks = 0:10) + 
+  labs(y = "S(x)",
+       x = "Dollar Amount") + theme_bw() +
+  annotate("text", x = 0.5:9.5, y =10:1/10 * 0.5, label = paste((10:1)/10, "x", rep(1,10))) +
+    geom_path(data=data.frame(x = rep(0:10, each=2), y = c(rbind(rep(0,10)/10,10:0/10 )), group = rep(0:10,each = 2) ), aes(x=x, y=y, group=group), col = "grey", alpha = .70) + geom_hline(yintercept = 0)
 ```
 
 # Kaplan-Meier
+
+## Product Limit Estimation
+The probability of exceeding a given value of $x$, is the all of the lower values.
+
+Assuming Charles gives us an answer of, " I will give you no more than 6 dollars!" If we assume that Charles would give any amount between 0 and 6 with equal probabilty, we could assign that extra probability to the observations below 6 
+
 
 ## ECDF and KM
 
