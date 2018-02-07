@@ -589,20 +589,34 @@ $\frac{10}{10} * \frac{9}{10} * \frac{8}{9} = \frac{8}{10}.
 - No adjustments are made to values above Charles maximum censoring level of 4.
 - Emprical Survival Curve and Mean are estimated in usual manner.
 
-## ECDF and ESDF for Coffee Data (Charles Censored)
+## Emperical Survival for Coffee Data
+(Charles Censored and Uncensored) -- need to think about this.
 ```{r echo=FALSE}
 x <- 1:10; cen <- rep(FALSE, 10) 
 #cen[3] <- TRUE
 sumx <- summary(cenfit(x,cen))
 sumx$S <- 1 -sumx$prob
-
+sumx$Censored <- "No"
 cen[4] <- TRUE
-cen[3] <- FALSE
-sumx <- summary(cenfit(x,cen))
-sumx$S <- 1 -sumx$prob
-ggplot(subset(sumx, sumx$n.event >0), aes(x=obs, y=S)) + geom_step() + theme_bw()
 
-subset(sumx, sumx$n.event >0)
+sumy <- summary(cenfit(x,cen))
+
+sumy <- subset(sumy, sumx$n.event >0)
+
+
+sumy$S <- 1 -sumy$prob
+sumy$Censored <- "Yes"
+
+sumx <- bind_rows(sumx, sumy)
+
+ggplot(sumx, aes(x=obs, y=S, color = Censored)) + geom_step(direction="hv") + 
+  scale_color_manual("Censored", values = c("#0072B2", "#F0E442")) + theme_bw() +
+  labs(main = "Empirical Survival Function",
+       y = "S(x)",
+       x = "x") + 
+  geom_hline(yintercept = 0)
+
+
        
 
 ```
