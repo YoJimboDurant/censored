@@ -165,10 +165,10 @@ xcenData$key <- factor(xcenData$key)
 levels(xcenData$key) <- c("1 %*% DL", "1/2 %*% DL", 
                           "1/sqrt(2) %*% DL", "0 %*% DL")
 
-ggplot(xcenData, aes(x=key, y=value, fill=factor(q))) + geom_boxplot() + theme_bw() + geom_hline(aes(yintercept = exp(1.58 + 0.5 * 0.6^2)), lty=2) + xlab("Subsitution Method") + ylab(expression(bar(x))) +scale_fill_manual("Censoring Rate", values = c("grey95", "grey50", "grey25")) + scale_x_discrete(labels = c(expression(1 %*% DL), expression(DL/2), expression(DL/sqrt(2)), expression(0 %*% DL))) +
-  labs(title = "Simulation of Sample Means by Censoring Rate\n and Substitution Method", 
+ggplot(xcenData, aes(x=key, y=value, fill=factor(q))) + geom_boxplot() + theme_bw() + geom_hline(aes(yintercept = exp(1.58 + 0.5 * 0.6^2)), lty=2) + xlab("Subsitution Method") + ylab(expression(bar(x))) +scale_fill_manual("Censoring Quantile", values = c("grey95", "grey50", "grey25")) + scale_x_discrete(labels = c(expression(1 %*% DL), expression(DL/2), expression(DL/sqrt(2)), expression(0 %*% DL))) +
+  labs(title = "Simulation of Sample Means by Censoring Quantile\n and Substitution Method", 
        subtitle = "Sample Size = 100",
-caption = "True Mean = 5.8\n Censoring rate is unitless [1 = 100% nondetect]")+
+caption = "True Mean = 5.8\n Censoring quantile is unitless [1 = 100% nondetect]")+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10,face="bold"),
         plot.caption=element_text(size=8))
@@ -604,13 +604,13 @@ $1 + \frac{1}{3}$.
 
 ## Emperical Survival for Coffee Data
 (Charles Censored and Uncensored) -- need to think about this.
-```{r echo=FALSE, warn=FALSE}
+```{r echo=FALSE, warn=FALSE, message=FALSE}
 dfy <- dfx
 
 dfy$Contrib[1:4] <- 10 - ((10 - dfy$Contrib)[1:4] * (1 + 1/3))
 dfy <- dfy[-c(5),] # GODDBYE CHARLES!
 
-dfy$Censored <-"K-M (<4)"
+dfy$Censored <-"Charles (<4)"
 
 
 dfx$Censored <- "No Censoring"
@@ -628,7 +628,7 @@ ggplot(dfz, aes(x=`Dollar Contribution`, y=`Contrib`/10, color = Censored)) + ge
                       group = rep(0:10,each = 2) ), 
       aes(x=x, y=y, group=group), col = "grey", alpha = .70) +
   geom_hline(yintercept = 0) + 
-  scale_color_manual("Model", values = c("#0072B2", "#F0E442")) + 
+  scale_color_manual(name = "Data", values = c("#0072B2", "#F0E442")) +
   annotate("text", x = c(0.5:2.5, 4, 5.5:9.5), y =9:1/10 * 0.5, 
            label = paste(signif(dfy$Contrib[1:9]/10,2), 
                          c(rep(1,3), 2, rep(1,5)), sep="x")) +
@@ -639,8 +639,85 @@ ggplot(dfz, aes(x=`Dollar Contribution`, y=`Contrib`/10, color = Censored)) + ge
        
 
 ```
-- The survival probabilities have decreased for levels below the censoring level.
-- The change in X ($Delta$) is 2 between 3 and 5.
+<article>
 
 
+The survival probabilities have decreased for levels below the censoring level. - The change in X (𝐷𝑒𝑙𝑡𝑎) is 2 between 3 and 5. Some key observations:
 
+1. Kaplan-Meier is adjusting the probabilities of observed values based on the order the censoring occurs. The effect will change depending on how high a censored value you have. So if you had a <10 observation – your sample mean would then become 5 (effectively, you have dropped your censored observation from the data set).
+2. The mean from the Kaplan-Meier estimate is somewhat intransient to deviations in censoring levels between observed observations. For instance, if Charles has said, “ I will give less than $4.75!” We will have gotten the same sample mean (\$5.3).
+3. Data where there are no uncensored observations below the censoring levels (singly censored data) will effectively result in substitution in the probabilities getting stacked at the lowest censoring level.This results in almost an identical estimate of the mean as if you substituted the detection limit.
+
+<\article>
+
+## Robust Regression on Order Statistics
+
+- Uses the linear relationship between the data values and their normal scores to create imputed values for the nondetected values.
+- This is like substitution, but with a range of values instead of a single value.
+- If applicable, transformation functions can be used to make skewed data normal (e.g. log function for lognormal data). 
+- Imputed data are transformed back to original scale.
+- Observed and imputed values are combined to create summary statistics. 
+
+## ROS Example
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+rosMean <- function(q){
+  xcen <- xdata < qlnorm(q, 1.58,0.6)
+  xdata[xcen] <- qlnorm(q, 1.58,0.6)
+  
+  xxdata <- matrix(xdata, ncol = 100)
+  xxcen <- matrix(xcen, ncol = 100)
+  
+  meanx = unlist(lapply(1:100, function(i){
+  mean(ros(xxdata[,i], xxcen[,i]))  
+  }))
+  
+  #browser()
+  data.frame(meanx, q = rep(q,100))
+}
+
+xxx <- (lapply(c(0.25,0.5,0.75), rosMean) %>%
+  bind_rows())
+
+
+set.seed(2)
+q <- rlnorm(20)
+qcen <- q < 1
+q[qcen] <- 1
+
+rosObj <- ros(q,qcen)
+
+xdf <- data.frame(rosObj) 
+
+xdf$q <- qnorm(xdf$pp)
+
+xdf$mymodel <- predict(rosObj, xdf$q)
+
+xdf %>%
+  mutate(q = qnorm(pp), censored = ifelse(censored, "ROS Imputed", "Observed Data")) %>%
+  ggplot(aes(x = q, y = modeled, shape=censored)) + geom_point() +
+  scale_y_continuous(trans = "log", breaks = 1:10) + 
+  scale_x_continuous(
+    labels = function(x) paste0(x, " \n [",100 * signif(pnorm(x, lower.tail=FALSE),2), "%]")) +
+  labs(x = "Normal Quantiles\n[% Exceeding]", y = "Sample Value") +
+  scale_shape_manual("Data Type", values = c(19,13)) + 
+  geom_line(aes(y = mymodel, group = NA)) +
+  theme_bw()
+
+```
+
+
+## Simulation of ROS Methods
+```{r simROS, echo=FALSE}
+
+ggplot(xxx, aes(x=q, y=meanx, fill=factor(q))) + geom_boxplot() + theme_bw() + geom_hline(aes(yintercept = exp(1.58 + 0.5 * 0.6^2)), lty=2) + xlab("Subsitution Method") + ylab(expression(bar(x))) +scale_fill_manual("Censoring Quantile", values = c("grey95", "grey50", "grey25")) + 
+  labs(title = "Simulation of Sample Means by Censoring Quantile\n using Robust Regression on Order Statistics", 
+       subtitle = "Sample Size = 100",
+caption = "True Mean = 5.8\n Censoring Quantile is unitless [1 = 100% nondetect]",
+x = "Censoring Quantile")+ ylim(c(0,9)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        plot.caption=element_text(size=8))
+
+
+```
