@@ -658,7 +658,7 @@ The survival probabilities have decreased for levels below the censoring level. 
 - Imputed data are transformed back to original scale.
 - Observed and imputed values are combined to create summary statistics. 
 
-## ROS Example
+## Imputing Values using ROS
 
 ```{r, echo = FALSE, warning = FALSE, message=FALSE}
 rosMean <- function(q){
@@ -695,16 +695,22 @@ xdf$mymodel <- predict(rosObj, xdf$q)
 
 xdf %>%
   mutate(q = qnorm(pp), censored = ifelse(censored, "ROS Imputed", "Observed Data")) %>%
-  ggplot(aes(x = q, y = modeled, shape=censored)) + geom_point() +
+  ggplot(aes(x = q, y = modeled, shape=censored)) + geom_point(size = 2) +
   scale_y_continuous(trans = "log", breaks = 1:10) + 
   scale_x_continuous(
     labels = function(x) paste0(x, " \n [",100 * signif(pnorm(x, lower.tail=FALSE),2), "%]")) +
   labs(x = "Normal Quantiles\n[% Exceeding]", y = "Sample Value") +
-  scale_shape_manual("Data Type", values = c(19,13)) + 
+  scale_shape_manual("Data Type", values = c(19,12)) + 
   geom_line(aes(y = mymodel, group = NA)) +
   theme_bw()
 
 ```
+
+<article>
+ROS imputes the values based on the ranks of the censored data.
+This usually works well, but sometimes if the distribution is contaminated with another distribution, or if the censoring limits are not precise, it is possible for imputed values to be higher than the censoring limit. It is always a good idea to check the linearity of the relationship of the quantiles of the assumed model to the values when using this method.
+
+<\article>
 
 
 ## Simulation of ROS Methods
@@ -721,3 +727,12 @@ x = "Censoring Quantile")+ ylim(c(0,9)) +
 
 
 ```
+
+Recalling our simulation of censored data from the start of our talk, substitution biased estimates of the mean, with the effect being worse for higher substitution. With ROS, bias is kept moderately low, even at very high censoring rates.   
+
+# MLE
+
+```{r MLE}
+library(LearnBayes)
+ d = mycontour(normchi2post, c(220, 330, 500, 9000), time,
+     xlab="mean",ylab="variance")
