@@ -14,6 +14,7 @@ require(tidyverse)
 require(magrittr)
 require(NADA)
 require(gtable)
+library(gridExtra)
 
 qq.line <- function(data, qf, na.rm) {
     # from stackoverflow.com/a/4357932/1346276
@@ -388,6 +389,11 @@ lx <- lapply(lx, function(x){
   
 })
 
+
+
+
+
+
 for(i in 1:length(lx)){
   lx[[i]]$sample <- names(lx)[[i]]
 }
@@ -400,17 +406,17 @@ dfx$Model <- factor(dfx$Model, levels = c("Population", "Sample.Fit", "Fit.Group
 levels(dfx$Model) <- c("Population","Sample","Binned Data")
 
 
-ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),
+(g1 <- ggplot(ydata, aes(x=x)) + geom_histogram(aes(y=..density..),
                                          breaks = c(-3.0, -2.5, -2.0, -1.5, -1.0, -0.5,  0.0,  0.5,  1.0,  1.5,  2.0,  2.5,3), alpha = 0.5) + facet_wrap(~sample) +
   xlim(-4.5,4.5) + theme_bw(base_family = "sans") +
     geom_line(data = dfx, aes(y=dens, color = Model), size=1.25) + scale_color_manual("Model", values = c("#000000", "#0072B2", "#F0E442")) +
   labs(title = "Four Samples of 100 Observations From Normal Distribution", 
        caption = "Parameters: Mean 0, Standard Deviation 1\nBlack line indicated theoretical distribution",
-       y = "Frequency")
+       y = "Frequency"))
 
+densx <- dfx
 
 ```
-
 
 
 ## PDF's and the Arithmetic Mean of a Distribution
@@ -650,6 +656,43 @@ The survival probabilities have decreased for levels below the censoring level. 
 
 <\article>
 
+
+
+
+## Kaplan-Meier with Simulated Data
+
+```{r kmsim, echo=FALSE}
+kmMean <- function(q){
+  xcen <- xdata < qlnorm(q, 1.58,0.6)
+  xdata[xcen] <- qlnorm(q, 1.58,0.6)
+  
+  xxdata <- matrix(xdata, ncol = 100)
+  xxcen <- matrix(xcen, ncol = 100)
+  
+  meanx = unlist(lapply(1:100, function(i){
+  mean(cenfit(xxdata[,i], xxcen[,i]))  
+  }))
+  
+  #browser()
+  data.frame(meanx, q = rep(q,100))
+}
+
+xxxKM <- (lapply(c(0.25,0.5,0.75), kmMean) %>%
+  bind_rows())
+
+ggplot(xxxKM, aes(x=q, y=meanx, fill=factor(q))) + geom_boxplot() + theme_bw() + geom_hline(aes(yintercept = exp(1.58 + 0.5 * 0.6^2)), lty=2) + xlab("Subsitution Method") + ylab(expression(bar(x))) +scale_fill_manual("Censoring Quantile", values = c("grey95", "grey50", "grey25")) + 
+  labs(title = "Simulation of Sample Means by Censoring Quantile\n using Kaplan-Meier Statistics", 
+       subtitle = "Sample Size = 100",
+caption = "True Mean = 5.8\n Censoring Quantile is unitless [1 = 100% nondetect]",
+x = "Censoring Quantile")+ ylim(c(0,9)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        plot.caption=element_text(size=8))
+
+
+```
+
+
 ## Robust Regression on Order Statistics
 
 - Uses the linear relationship between the data values and their normal scores to create imputed values for the nondetected values.
@@ -730,9 +773,144 @@ x = "Censoring Quantile")+ ylim(c(0,9)) +
 
 Recalling our simulation of censored data from the start of our talk, substitution biased estimates of the mean, with the effect being worse for higher substitution. With ROS, bias is kept moderately low, even at very high censoring rates.   
 
-# MLE
+# Maximum Liklihood Estimation
 
-```{r MLE}
-library(LearnBayes)
- d = mycontour(normchi2post, c(220, 330, 500, 9000), time,
-     xlab="mean",ylab="variance")
+## Maximum Liklihood Estimation (MLE)
+
+Recall:
+- PDF's predict the relative frequency of a given data point, and 
+- the CDF predicts the frequency of observations in a range of values.
+
+Therefore, if we assume the data came from a given distribution, we can calculate the parameters of the distribution that are more likely to give us the data we observed than other.
+
+The liklihood is product of PDF at each datum, times the product of probability of each of the intervals.
+
+## Maximum Liklihood Estimation (Example)
+When we were talking about PDF's, we estimated the parameters using the grouped data using the MLE. What happened was the liklihood was calculated for the mean and the standard deviation of a normal distribution.
+
+```{r regen grouped data, echo = FALSE}
+dfx <- split(ydata_dist, ydata_dist$sample) %>%
+  lapply(function(x){
+    data.frame(sample = x$sample, x = seq(from = -4.5, to = 4.5, length = 100), `Population` = dnorm(x = seq(from = -4.5, to = 4.5, length = 100)),
+    `Sample Fit` = dnorm(x = seq(from = -4.5, to = 4.5, length = 100), mean = x$mean, sd=x$sd))
+  }) %>%
+  bind_rows(.) 
+
+lx <- split(ydata, ydata$sample) %>% lapply(function(x) hist(x$x, plot=FALSE,
+                                                       breaks = c(-3,-2.5, -2.0, -1.5, -1.0, -0.5,  0.0,  0.5,  1.0,  1.5,  2.0,  2.5,3)))
+
+lx_group <- lapply(lx, function(x){
+  left = x$breaks[1:length(x$breaks)-1]
+  right = x$breaks[2:length(x$breaks)]
+  count = x$counts
+  
+  left <- rep(left, count)
+  right <- rep(right, count)
+  
+  data.frame(left = left, right = right)
+  
+})
+
+
+
+# function for MLE
+intFun <- function(xdf, mean, sd){
+  xdf$left[is.na(xdf$left)] <- -Inf
+  xdf$right[is.na(xdf$right)] <- Inf
+  
+  
+  if(any(xdf$left == xdf$right) & any(xdf$left != xdf$right)){
+        intData <- xdf[xdf$left != xdf$right,]
+        pointData <- xdf[xdf$left == xdf$right,]
+  
+  logLike <- sum(
+    sum(log(pnorm(intData$right, mean=mean, sd=sd) - pnorm(intData$left, mean = mean, sd=sd))), 
+    sum(log(dnorm(pointData$right, mean = mean, sd=sd)))
+  )
+  
+  } 
+  
+  if(all(xdf$left != xdf$right)){
+    intData <- xdf[xdf$left != xdf$right,]
+    logLike <- sum(log(pnorm(intData$right, mean=mean, sd=sd) - pnorm(xdf$left, mean, sd)))
+}
+
+  return(logLike)
+  
+}
+
+
+groupLogLike <- function(mu,sigma) {
+  intFun(lx_group[[1]], mean=mu, sd=sigma)
+}
+
+
+
+mleFrame <- data.frame(mu = seq(from = -2, to =2, length.out = 1000),
+                       sigma = seq(from = 0.1, 100, length.out = 1000))  
+  
+
+```
+
+```{r g12, echo = FALSE}
+denfx <- filter(denfx, sample == "Sample 1")
+g1 <- filter(ydata, sample  == "Sample 1") %>%
+ ggplot(aes(x=x)) + geom_histogram(aes(y=..density..),
+                                         breaks = c(-3.0, -2.5, -2.0, -1.5, -1.0, -0.5,  0.0,  0.5,  1.0,  1.5,  2.0,  2.5,3), alpha = 0.5) + facet_wrap(~sample) +
+  xlim(-4.5,4.5) + theme_bw(base_family = "sans") +
+    geom_line(data = denfx, aes(y=dens, color = Model), size=1.25) + scale_color_manual("Model", values = c("#000000", "#0072B2", "#F0E442")) +
+  labs(title = "Four Samples of 100 Observations From Normal Distribution", 
+       caption = "Parameters: Mean 0, Standard Deviation 1\nBlack line indicated theoretical distribution",
+       y = "Frequency")
+
+
+mleFrame$muLike <- sapply(mleFrame$mu, function(x) groupLogLike(x, sigma = 1))
+
+mleFrame$sigmaLike <- sapply(mleFrame$sigma, function(x) groupLogLike(1, sigma = x))
+
+
+g2 <- ggplot(mleFrame, aes(x=mu, y = muLike)) + geom_line() + labs(title = "Mean Parameter Liklihood",
+                                                                   x = "mu",
+                                                                   y = "liklihood") + theme_bw()
+g3 <- ggplot(mleFrame, aes(x=sigma, y = sigmaLike)) + geom_line() + labs(title = "Mean Parameter Liklihood",
+                                                                   x = "sigma",
+                                                                   y = "liklihood") + theme_bw()
+
+grid.arrange(g1, grid.arrange(g2, g3, ncol=2), nrow = 2)
+
+```
+
+
+## MLE with Simulated Data
+
+```{r mlesim, echo=FALSE}
+mleMean <- function(q){
+  xcen <- xdata < qlnorm(q, 1.58,0.6)
+  xdata[xcen] <- qlnorm(q, 1.58,0.6)
+  
+  xxdata <- matrix(xdata, ncol = 100)
+  xxcen <- matrix(xcen, ncol = 100)
+  
+  meanx = unlist(lapply(1:100, function(i){
+  mean(cenmle(xxdata[,i], xxcen[,i]))  
+  }))
+  
+  #browser()
+  data.frame(meanx, q = rep(q,100))
+}
+
+xxxMLE <- (lapply(c(0.25,0.5,0.75), mleMean) %>%
+  bind_rows())
+
+ggplot(xxxMLE, aes(x=q, y=meanx, fill=factor(q))) + geom_boxplot() + theme_bw() + geom_hline(aes(yintercept = exp(1.58 + 0.5 * 0.6^2)), lty=2) + xlab("Subsitution Method") + ylab(expression(bar(x))) +scale_fill_manual("Censoring Quantile", values = c("grey95", "grey50", "grey25")) + 
+  labs(title = "Simulation of Sample Means by Censoring Quantile\n using Maximum Liklihood Statistics", 
+       subtitle = "Sample Size = 100",
+caption = "True Mean = 5.8\n Censoring Quantile is unitless [1 = 100% nondetect]",
+x = "Censoring Quantile")+ ylim(c(0,9)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10,face="bold"),
+        plot.caption=element_text(size=8))
+
+
+```
+
